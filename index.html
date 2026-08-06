@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dio Tibb - AI Həkim Asistanı</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .chat-card {
+            width: 100%;
+            max-width: 450px;
+            height: 90vh;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-header {
+            background: linear-gradient(135deg, #007bff, #00d2ff);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .chat-header h2 {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+        .chat-header p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f8fafc;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 15px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+        .bot-message {
+            background: #e9ecef;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+        .user-message {
+            background: #007bff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .chat-input-area {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #edf2f7;
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 25px;
+            outline: none;
+            font-size: 0.95rem;
+        }
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .loading {
+            font-style: italic;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-card">
+    <div class="chat-header">
+        <h2>Dio Tibb AI 🩺</h2>
+        <p>Ağıllı Tibbi Asistantınız</p>
+    </div>
+    
+    <div class="chat-messages" id="chatBox">
+        <div class="message bot-message">
+            Salam! Mən Dio Tibb AI asistaniyəm. Sağlamlığınızla bağlı sizi nə narahat edir?
+        </div>
+    </div>
+
+    <div class="chat-input-area">
+        <input type="text" id="userInput" placeholder="Simptomlarınızı yazın..." onkeypress="handleKeyPress(event)">
+        <button onclick="sendMessage()">Göndər</button>
+    </div>
+</div>
+
+<script>
+    async function sendMessage() {
+        const inputField = document.getElementById("userInput");
+        const chatBox = document.getElementById("chatBox");
+        const userText = inputField.value.trim();
+
+        if (!userText) return;
+
+        appendMessage(userText, "user-message");
+        inputField.value = "";
+
+        const loadingDiv = document.createElement("div");
+        loadingDiv.className = "message bot-message loading";
+        loadingDiv.innerText = "Dio Tibb düşünür...";
+        chatBox.appendChild(loadingDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: "meta-llama/llama-3.1-8b-instruct:free",
+                    messages: [
+                        {
+                            role: "system",
+                            content: "Sen peşəkar həkim asistansan. İstifadəçinin verdiyi tibbi suallara dəqiq, mərhəmətli və aydın Azərbaycan dilində cavab ver. Əgər vəziyyət ciddidirsə, mütləq həkimə müraciət etməyi məsləhət gör."
+                        },
+                        { role: "user", content: userText }
+                    ]
+                })
+            });
+
+            const data = await response.json();
+            chatBox.removeChild(loadingDiv);
+
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+                appendMessage(data.choices[0].message.content, "bot-message");
+            } else {
+                appendMessage("Hal-hazırda cavab yaradılması mümkün olmadı. Zəhmət olmasa bir az sonra yenidən cəhd edin.", "bot-message");
+            }
+        } catch (error) {
+            chatBox.removeChild(loadingDiv);
+            appendMessage("Şəbəkə xətası baş verdi. İnternet bağlantınızı yoxlayın.", "bot-message");
+        }
+    }
+
+    function appendMessage(text, className) {
+        const chatBox = document.getElementById("chatBox");
+        const msgDiv = document.createElement("div");
+        msgDiv.className = `message ${className}`;
+        msgDiv.innerText = text;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === "Enter") {
+            sendMessage();
+        }
+    }
+</script>
+
+</body>
+</html>
